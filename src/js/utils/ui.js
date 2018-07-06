@@ -3,8 +3,12 @@ import { DRAG, DRAG_START, DRAG_END, CLICK, DOUBLE_CLICK, MOVE, OUT, TAP, DOUBLE
 import Events from 'utils/backbone.events';
 import { now } from 'utils/date';
 
-const TouchEvent = window.TouchEvent;
-const PointerEvent = window.PointerEvent;
+const noop = function() {};
+const KeyboardEvent = window.KeyboardEvent || noop;
+const MouseEvent = window.MouseEvent || noop;
+const PointerEvent = window.PointerEvent || noop;
+const TouchEvent = window.TouchEvent || noop;
+
 const _supportsPointerEvents = ('PointerEvent' in window) && !OS.android;
 const _supportsTouchEvents = ('ontouchstart' in window); // TODO: Use createEvent() try catch test
 const _useMouseEvents = !_supportsPointerEvents && !(_supportsTouchEvents && OS.mobile);
@@ -17,6 +21,7 @@ let unique = 0;
 // Research: listener total is 154 with 3IkpdgrX-rcY6EcsD setup
 //   36 UI instances listen with 'interactStartHandler'
 //   11 buttons with preventDefault
+// TODO: unit tests
 
 // TODO: Only add event listeners when on('event') requires it
 // TODO: remove need for `useHover`, `useFocus`*, `useMove` and `enableDoubleTap`
@@ -183,7 +188,7 @@ const UI = function (elem, options) {
     }
 
     function interactStartHandler(evt) {
-        _touchListenerTarget = evt.target;
+        const target = evt.target;
         _startX = getCoord(evt, 'X');
         _startY = getCoord(evt, 'Y');
 
@@ -198,7 +203,7 @@ const UI = function (elem, options) {
                 setEventListener(elem, 'pointercancel', interactEndHandler);
 
                 // Listen for mouseup after mouse pointer down because pointerup doesn't fire on swf objects
-                if (evt.pointerType === 'mouse' && _touchListenerTarget.nodeName === 'OBJECT') {
+                if (evt.pointerType === 'mouse' && target.nodeName === 'OBJECT') {
                     setEventListener(document, 'mouseup', interactEndDelegate);
                 } else {
                     setEventListener(elem, 'pointerup', interactEndHandler);
@@ -213,6 +218,7 @@ const UI = function (elem, options) {
                     setEventListener(document, 'mouseup', interactEndDelegate);
                 }
             } else if (evt.type === 'touchstart') {
+                _touchListenerTarget = target;
                 longPressTimeout = setTimeout(() => {
                     if (_touchListenerTarget) {
                         _touchListenerTarget.removeEventListener('touchmove', interactDragHandler);
@@ -313,8 +319,6 @@ const UI = function (elem, options) {
         evt = normalizeUIEvent(type, srcEvent, _elem);
         this.trigger(type, evt);
     };
-
-    this.triggerEvent = triggerEvent;
 
     this.destroy = function() {
         this.off();
